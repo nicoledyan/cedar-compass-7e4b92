@@ -77,6 +77,6 @@ export async function analyzeListing(home: HomeRecord, preferences: string, phot
     }
     throw new Error(error.message || 'The listing could not be analyzed.');
   }
-  if (!data) throw new Error('Groq returned an empty analysis.');
+  if (!data) throw new Error('Gemini returned an empty analysis.');
   return data;
 }

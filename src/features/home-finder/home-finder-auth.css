@@ -36,3 +36,9 @@
 .finder-ai-delete { margin-top: 16px; }
 @keyframes finder-spin { to { transform: rotate(360deg); } }
 @media (max-width: 520px) { .finder-ai-summary { grid-template-columns: 1fr; } .finder-ai-big-score { width: 76px; height: 76px; } }
+.finder-preferences { margin: -18px 0 36px; border: 1px solid #c9d1c8; border-radius: 16px; background: rgba(255,253,248,.72); }
+.finder-preferences summary { display: flex; justify-content: space-between; gap: 12px; padding: 16px 20px; color: #33483a; font-weight: 850; cursor: pointer; }
+.finder-preferences summary span { color: #64766a; font-size: .78rem; }
+.finder-preferences > div { padding: 0 20px 18px; }
+.finder-preferences p, .finder-preferences small { color: #6d766f; font-size: .8rem; line-height: 1.45; }
+.finder-preferences textarea { width: 100%; min-height: 190px; padding: 12px; border: 1px solid #bec8be; border-radius: 12px; background: white; color: #27332c; line-height: 1.5; resize: vertical; }

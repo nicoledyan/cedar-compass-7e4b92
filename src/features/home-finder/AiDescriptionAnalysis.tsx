@@ -3,7 +3,7 @@ import { Bot, LogOut, Sparkles } from 'lucide-react';
 import { aiConfigured, analyzeListing, getSession, signOut, supabase, type AiHomeAnalysis } from './ai';
 import type { HomeRecord } from './types';
 
-export default function AiDescriptionAnalysis({ home, autoAnalyze = false, onComplete }: { home: HomeRecord; autoAnalyze?: boolean; onComplete: (analysis: AiHomeAnalysis) => void }) {
+export default function AiDescriptionAnalysis({ home, preferences, autoAnalyze = false, onComplete }: { home: HomeRecord; preferences: string; autoAnalyze?: boolean; onComplete: (analysis: AiHomeAnalysis) => void }) {
   const [signedInEmail, setSignedInEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function AiDescriptionAnalysis({ home, autoAnalyze = false, onCom
 
   const analyze = async () => {
     setMessage(''); setLoading(true);
-    try { const result = await analyzeListing(home); setAnalysis(result); onComplete(result); }
+    try { const result = await analyzeListing(home, preferences); setAnalysis(result); onComplete(result); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'The listing could not be reviewed.'); }
     finally { setLoading(false); }
   };

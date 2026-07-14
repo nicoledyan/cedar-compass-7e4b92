@@ -68,9 +68,9 @@ export async function prepareListingPhotos(files: FileList | File[]): Promise<Li
   }));
 }
 
-export async function analyzeListing(home: HomeRecord, photos: ListingPhoto[] = []): Promise<AiHomeAnalysis> {
+export async function analyzeListing(home: HomeRecord, preferences: string, photos: ListingPhoto[] = []): Promise<AiHomeAnalysis> {
   if (!supabase) throw new Error('AI analysis is not configured yet.');
-  const { data, error } = await supabase.functions.invoke<AiHomeAnalysis>('analyze-home', { body: { address: home.address, listingUrl: home.zillowUrl, description: home.listingDescription, photos: photos.map((photo) => photo.dataUrl) } });
+  const { data, error } = await supabase.functions.invoke<AiHomeAnalysis>('analyze-home', { body: { address: home.address, listingUrl: home.zillowUrl, preferences, description: home.listingDescription, photos: photos.map((photo) => photo.dataUrl) } });
   if (error) {
     const context = 'context' in error ? error.context : null;
     if (context instanceof Response) {

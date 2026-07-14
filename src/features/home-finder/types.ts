@@ -36,6 +36,11 @@ export interface HomeRecord {
   coveredPorch: boolean;
   showerWindow: boolean;
   listingDescription?: string;
+  aiScore?: number;
+  aiVerdict?: string;
+  aiSummary?: string;
+  aiObservations?: string[];
+  aiCautions?: string[];
   notes: string;
 }
 

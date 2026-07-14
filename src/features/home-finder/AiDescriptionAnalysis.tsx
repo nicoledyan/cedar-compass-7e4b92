@@ -1,17 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Camera, Check, LogIn, LogOut, Sparkles, X } from 'lucide-react';
-import { aiConfigured, analyzeListing, getSession, prepareListingPhotos, sendSignInLink, signOut, supabase, type AiHomeAnalysis, type ListingPhoto } from './ai';
+import { Bot, LogOut, Sparkles } from 'lucide-react';
+import { aiConfigured, analyzeListing, getSession, signOut, supabase, type AiHomeAnalysis } from './ai';
 import type { HomeRecord } from './types';
 
-const fieldLabels: Record<string, string> = { mountainViews: 'Mountain views', condition: 'Move-in condition', yard: 'Usable yard', naturalLight: 'Natural light', layout: 'Layout and entertaining', neighborhoodFeel: 'Established character', walkability: 'Walkability', safety: 'Safety and comfort', noise: 'Quiet / low noise', amenities: 'Useful nearby places' };
-
-export default function AiDescriptionAnalysis({ draft, setDraft, autoAnalyze = false, onAutoAnalyzeDone = () => {} }: { draft: HomeRecord; setDraft: React.Dispatch<React.SetStateAction<HomeRecord>>; autoAnalyze?: boolean; onAutoAnalyzeDone?: () => void }) {
-  const [email, setEmail] = useState('');
+export default function AiDescriptionAnalysis({ home, autoAnalyze = false, onComplete }: { home: HomeRecord; autoAnalyze?: boolean; onComplete: (analysis: AiHomeAnalysis) => void }) {
   const [signedInEmail, setSignedInEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<AiHomeAnalysis | null>(null);
-  const [photos, setPhotos] = useState<ListingPhoto[]>([]);
+  const [analysis, setAnalysis] = useState<AiHomeAnalysis | null>(home.aiScore === undefined ? null : { fitScore: home.aiScore, verdict: home.aiVerdict ?? '', summary: home.aiSummary ?? '', observations: home.aiObservations ?? [], cautions: home.aiCautions ?? [], suggestions: [], facts: { price: null, bedrooms: null, bathrooms: null, hoa: null, parking: null, sunroom: null, screenedPorch: null, coveredPorch: null, showerWindow: null } });
   const autoStarted = useRef(false);
 
   useEffect(() => {
@@ -19,41 +15,23 @@ export default function AiDescriptionAnalysis({ draft, setDraft, autoAnalyze = f
     return supabase?.auth.onAuthStateChange((_event, session) => setSignedInEmail(session?.user.email ?? '')).data.subscription.unsubscribe;
   }, []);
 
-  const requestLink = async () => {
-    setMessage(''); setLoading(true);
-    try { await sendSignInLink(email.trim()); setMessage('Check your email for the secure sign-in link.'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Sign-in failed.'); }
-    finally { setLoading(false); }
-  };
   const analyze = async () => {
-    setMessage(''); setLoading(true); setAnalysis(null);
-    try { const result = await analyzeListing(draft, photos); setAnalysis(result); applyResult(result); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Analysis failed.'); }
+    setMessage(''); setLoading(true);
+    try { const result = await analyzeListing(home); setAnalysis(result); onComplete(result); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'The listing could not be reviewed.'); }
     finally { setLoading(false); }
-  };
-  useEffect(() => {
-    if (!autoAnalyze || !signedInEmail || autoStarted.current) return;
-    autoStarted.current = true; onAutoAnalyzeDone(); void analyze();
-  }, [autoAnalyze, signedInEmail]);
-  const applyResult = (result: AiHomeAnalysis) => {
-    setDraft((current) => {
-      const facts = Object.fromEntries(Object.entries(result.facts).filter(([, value]) => value !== null));
-      return result.suggestions.reduce((next, suggestion) => ({ ...next, [suggestion.field]: suggestion.rating }), { ...current, ...facts });
-    });
-    setMessage('AI filled every field supported by the available evidence. Review the results, then save.');
   };
 
-  return <fieldset className="finder-ai-fieldset"><legend><Bot size={19}/> AI listing review</legend>
-    <p className="finder-field-note">The saved prompt researches the address from public web results. Photos and a pasted description are optional and can improve the review. Groq suggests ratings for your approval and cannot change the saved home by itself.</p>
-    <details className="finder-ai-optional"><summary>Optional: add description</summary><textarea value={draft.listingDescription ?? ''} onChange={(event) => setDraft((current) => ({ ...current, listingDescription: event.target.value }))} placeholder="Paste the public listing description here…" rows={6}/></details>
-    <div className="finder-photo-picker"><label><Camera size={17}/><span>{photos.length ? 'Add more photos' : 'Add listing photos'}</span><input type="file" accept="image/*" multiple onChange={async (event) => { try { const next = await prepareListingPhotos(event.target.files ?? []); setPhotos((current) => [...current, ...next].slice(0, 5)); setMessage(next.length ? `${next.length} photo${next.length === 1 ? '' : 's'} ready for this analysis.` : 'Choose image files.'); } catch { setMessage('Those photos could not be prepared.'); } event.target.value = ''; }}/></label><small>Up to 5. They are analyzed once and are not saved.</small></div>
-    {photos.length > 0 && <div className="finder-photo-preview">{photos.map((photo, index) => <div key={`${photo.name}-${index}`}><img src={photo.dataUrl} alt={`Selected listing ${index + 1}`}/><button type="button" onClick={() => setPhotos((current) => current.filter((_, item) => item !== index))} aria-label={`Remove photo ${index + 1}`}><X size={14}/></button></div>)}</div>}
-    {!aiConfigured ? <p className="finder-ai-notice">AI setup is not deployed yet.</p> : !signedInEmail ? <div className="finder-ai-login"><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Your approved email" aria-label="Email for AI sign in"/><button type="button" onClick={() => void requestLink()} disabled={loading || !email.trim()}><LogIn size={16}/> Email sign-in link</button></div> : <div className="finder-ai-actions"><span>Signed in as {signedInEmail}</span><button type="button" onClick={() => void analyze()} disabled={loading}><Sparkles size={16}/> {loading ? 'Researching…' : 'Research & analyze'}</button><button className="finder-ai-signout" type="button" onClick={() => void signOut()}><LogOut size={15}/> Sign out</button></div>}
-    {message && <p className="finder-ai-notice" role="status">{message}</p>}
-    {analysis && <div className="finder-ai-result"><h3>{analysis.summary}</h3>
-      {analysis.observations.length > 0 && <div><strong>What the available evidence supports</strong>{analysis.observations.map((item) => <p key={item}>+ {item}</p>)}</div>}
-      {analysis.cautions.length > 0 && <div><strong>What still needs checking</strong>{analysis.cautions.map((item) => <p key={item}>? {item}</p>)}</div>}
-      {analysis.suggestions.length > 0 && <div className="finder-ai-suggestions"><strong>Applied ratings</strong>{analysis.suggestions.map((item) => <p key={item.field}><b>{fieldLabels[item.field]}: {item.rating}/5</b> — {item.evidence} <small>{item.confidence} confidence</small></p>)}<button type="button" onClick={() => applyResult(analysis)}><Check size={16}/> Apply again</button></div>}
-    </div>}
-  </fieldset>;
+  useEffect(() => {
+    if (!autoAnalyze || !signedInEmail || autoStarted.current) return;
+    autoStarted.current = true; void analyze();
+  }, [autoAnalyze, signedInEmail]);
+
+  return <section className="finder-ai-simple" aria-live="polite">
+    <div className="finder-ai-simple-head"><div><h4><Bot size={19}/> AI fit review</h4><p>Compared automatically with your saved home priorities.</p></div>{signedInEmail && <button type="button" className="finder-ai-signout" onClick={() => void signOut()}><LogOut size={15}/> Sign out</button>}</div>
+    {!aiConfigured ? <p className="finder-error">AI is not configured.</p> : !signedInEmail ? <p className="finder-error">Sign in above to run the review.</p> : <button className="finder-analyze-button" type="button" onClick={() => void analyze()} disabled={loading}><Sparkles size={17}/>{loading ? 'Researching listing…' : analysis ? 'Run review again' : 'Research & score'}</button>}
+    {loading && <div className="finder-ai-progress"><span/><p>Searching current MLS mirrors and comparing the home with your priorities. This can take about 20–40 seconds.</p></div>}
+    {message && <p className="finder-error" role="status">{message}</p>}
+    {analysis && !loading && <div className="finder-ai-summary"><div className="finder-ai-big-score"><strong>{analysis.fitScore}</strong><span>/ 100</span></div><div><p className="finder-ai-verdict">{analysis.verdict}</p><h3>{analysis.summary}</h3></div>{analysis.observations.length > 0 && <div className="finder-ai-evidence"><strong>Why it may fit</strong>{analysis.observations.slice(0, 5).map((item) => <p key={item}>+ {item}</p>)}</div>}{analysis.cautions.length > 0 && <div className="finder-ai-evidence cautions"><strong>Still worth checking</strong>{analysis.cautions.slice(0, 4).map((item) => <p key={item}>? {item}</p>)}</div>}</div>}
+  </section>;
 }

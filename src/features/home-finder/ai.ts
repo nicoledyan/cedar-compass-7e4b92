@@ -17,6 +17,8 @@ export interface AiSuggestion {
 }
 
 export interface AiHomeAnalysis {
+  fitScore: number;
+  verdict: string;
   summary: string;
   observations: string[];
   cautions: string[];

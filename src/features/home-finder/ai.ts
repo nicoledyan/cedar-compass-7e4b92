@@ -22,6 +22,9 @@ export interface AiHomeAnalysis {
   summary: string;
   observations: string[];
   cautions: string[];
+  confidence: number;
+  confirmedFacts: Array<{ label: string; value: string; evidence: string; sourceUrl: string; confidence: 'high' | 'medium' | 'low' }>;
+  unknowns: string[];
   sources: Array<{ title: string; url: string }>;
 }
 

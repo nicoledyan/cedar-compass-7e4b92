@@ -41,6 +41,9 @@ export interface HomeRecord {
   aiSummary?: string;
   aiObservations?: string[];
   aiCautions?: string[];
+  aiConfidence?: number;
+  aiConfirmedFacts?: Array<{ label: string; value: string; evidence: string; sourceUrl: string; confidence: 'high' | 'medium' | 'low' }>;
+  aiUnknowns?: string[];
   aiSources?: Array<{ title: string; url: string }>;
   notes: string;
 }

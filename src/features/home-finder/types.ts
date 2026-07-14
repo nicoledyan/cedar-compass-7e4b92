@@ -35,6 +35,7 @@ export interface HomeRecord {
   screenedPorch: boolean;
   coveredPorch: boolean;
   showerWindow: boolean;
+  listingDescription?: string;
   notes: string;
 }
 

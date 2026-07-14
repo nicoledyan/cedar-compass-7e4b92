@@ -56,43 +56,50 @@
 .finder-backup-inner { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; padding: 0 20px 18px; }
 .finder-backup > .finder-backup-message { padding: 0 20px 16px; }
 
-/* Home Finder has its own warm, editorial palette — intentionally not Brag green. */
-.finder-page { color: #302e2b; background: radial-gradient(circle at 90% 3%, rgba(190,112,82,.16), transparent 28%), radial-gradient(circle at 5% 40%, rgba(120,91,115,.08), transparent 24%), linear-gradient(180deg, #fbf5ec, #f3ebe1); }
-.finder-hero h1 em { color: #a35943; }
-.finder-eyebrow, .finder-section-heading span { color: #9b5744; }
-.finder-hero-promises span { border-color: rgba(155,87,68,.25); background: rgba(255,252,247,.7); color: #914e3c; }
-.finder-import, .finder-card { border-color: #dfd1c5; box-shadow: 0 12px 30px rgba(76,48,37,.07); }
-.finder-import-row button, .finder-google-button, .finder-analyze-button { background: #9b5945; }
-.finder-import-row .finder-paste-button { border-color: #c8a99b; color: #7e493a; }
-.finder-auth-gate { border-color: #d3b7a9; background: #fffaf5; }
-.finder-card-title a, .finder-ai-sources a, .finder-fact-grid details > a { color: #804a3b; }
-.finder-card-meta span { color: #8c746b; }
-.finder-score.score-high, .finder-ai-big-score { border-color: #bf755d; }
-.finder-score.score-mid { border-color: #bd9650; }
-.finder-score.score-low { border-color: #9f6170; }
-.finder-ai-summary { border-color: #e1d2c7; background: #fffaf6; }
-.finder-review-hero { border-bottom-color: #eadbd1; }
-.finder-ai-verdict { background: #f4e1d7; color: #8b4d3b; }
-.finder-confidence { color: #765f57; }
-.finder-confidence svg { color: #a55e49; }
-.finder-confidence em { color: #9a8177; }
-.finder-review-section { border-color: #eadbd1; background: #fffdfb; }
-.finder-review-section p { color: #625a55; }
-.finder-review-section p::before { color: #b46d56; }
-.finder-review-section.cautions { border-color: #ead9b9; background: #fffaf0; }
-.finder-review-section.cautions h4, .finder-review-section.cautions p::before { color: #a3743c; }
-.finder-fact-grid details { border-color: #e2d5cd; background: #fffdfb; }
-.finder-fact-grid summary span { color: #806e66; }
-.finder-fact-grid .confidence-high { background: #f1dfd7; color: #8b4c3b; }
-.finder-fact-grid .confidence-medium { background: #f4ebd5; color: #86672f; }
-.finder-fact-grid .confidence-low { background: #eee1e6; color: #865362; }
-.finder-unknowns { border-color: #d8c8c0; background: rgba(255,252,248,.65); }
-.finder-unknowns li { color: #675d58; }
-.finder-ai-sources { border-top-color: #eadbd1; }
-.finder-verification-note { color: #8b7d76; }
-.finder-preferences { border-color: #ddcfc5; background: rgba(255,252,248,.74); }
-.finder-preferences summary { color: #754738; }
-.finder-preferences summary span { color: #986453; }
+/* A bright, airy "bubble" palette: periwinkle and lilac carry the interface;
+   pink is reserved for small moments of delight, not warning states. */
+.finder-page { color: #262344; background: radial-gradient(circle at 92% 2%, rgba(255, 166, 220, .36), transparent 29%), radial-gradient(circle at 5% 35%, rgba(147, 174, 255, .28), transparent 28%), linear-gradient(180deg, #fbfaff, #f1f3ff); }
+.finder-hero h1 em { color: #7167d9; }
+.finder-eyebrow, .finder-section-heading span { color: #7965c7; }
+.finder-hero-promises span { border-color: rgba(113, 103, 217, .22); background: rgba(255,255,255,.68); color: #5d58a9; }
+.finder-import, .finder-card { border-color: #d9d8f2; background: rgba(255,255,255,.88); box-shadow: 0 14px 34px rgba(78, 75, 155, .10); }
+.finder-import-row button, .finder-google-button, .finder-analyze-button, .finder-password-login button, .finder-account-menu button { background: linear-gradient(135deg, #7569dc, #9a75df); box-shadow: 0 7px 16px rgba(106, 90, 206, .20); }
+.finder-import-row .finder-paste-button { border-color: #c9c5ef; color: #625bae; box-shadow: none; }
+.finder-auth-gate { border-color: #d5d1f4; background: #faf9ff; }
+.finder-card-title a, .finder-ai-sources a, .finder-fact-grid details > a { color: #6056ad; }
+.finder-card-meta span { color: #777594; }
+.finder-score.score-high, .finder-ai-big-score { border-color: #7d73dc; }
+.finder-score.score-mid { border-color: #db82bb; }
+.finder-score.score-low { border-color: #e37b91; }
+.finder-ai-summary { border-color: #d8d7f1; background: linear-gradient(145deg, #ffffff, #f7f5ff); }
+.finder-review-hero { border-bottom-color: #e2e0f5; }
+.finder-ai-intro h3 { color: #2d294e; }
+.finder-ai-verdict { background: #eeeaff; color: #6258ae; }
+.finder-confidence { color: #67647f; }
+.finder-confidence svg { color: #776ed3; }
+.finder-confidence em { color: #8c89a3; }
+.finder-review-section { border-color: #e1dff4; background: rgba(255,255,255,.84); }
+.finder-review-section p { color: #56536c; }
+.finder-review-section p::before { color: #8a7ee0; }
+.finder-review-section.cautions { border-color: #f0d5e6; background: #fff9fd; }
+.finder-review-section.cautions h4, .finder-review-section.cautions p::before { color: #b65f91; }
+.finder-fact-grid details { border-color: #dfddf5; background: #fff; }
+.finder-fact-grid summary span { color: #73718d; }
+.finder-fact-grid .confidence-high { background: #e9e7ff; color: #5750a0; }
+.finder-fact-grid .confidence-medium { background: #ffe7f3; color: #a04b79; }
+.finder-fact-grid .confidence-low { background: #ffe8e9; color: #aa5268; }
+.finder-unknowns { border-color: #cfcced; background: rgba(248,247,255,.7); }
+.finder-unknowns li { color: #5f5b76; }
+.finder-ai-sources { border-top-color: #e1dff4; }
+.finder-verification-note { color: #85829a; }
+.finder-preferences { border-color: #d8d5f2; background: rgba(255,255,255,.72); }
+.finder-preferences summary { color: #4d478b; }
+.finder-preferences summary span { color: #746cb0; }
+.finder-inline-signout, .finder-account-menu summary, .finder-ai-card .finder-card-verdict { color: #625bae; }
+.finder-ai-signout { border-color: #d1ceed; color: #5d5792; }
+.finder-ai-progress { background: #f0efff; }
+.finder-ai-progress span { border-color: #d3cff7; border-top-color: #7569dc; }
+.finder-ai-progress p, .finder-card-summary { color: #5f5c75; }
 
 @media (max-width: 760px) {
   .finder-hero h1 { font-size: clamp(3rem,15vw,5rem); }

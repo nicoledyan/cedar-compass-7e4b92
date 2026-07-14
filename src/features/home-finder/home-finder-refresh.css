@@ -56,6 +56,44 @@
 .finder-backup-inner { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; padding: 0 20px 18px; }
 .finder-backup > .finder-backup-message { padding: 0 20px 16px; }
 
+/* Home Finder has its own warm, editorial palette — intentionally not Brag green. */
+.finder-page { color: #302e2b; background: radial-gradient(circle at 90% 3%, rgba(190,112,82,.16), transparent 28%), radial-gradient(circle at 5% 40%, rgba(120,91,115,.08), transparent 24%), linear-gradient(180deg, #fbf5ec, #f3ebe1); }
+.finder-hero h1 em { color: #a35943; }
+.finder-eyebrow, .finder-section-heading span { color: #9b5744; }
+.finder-hero-promises span { border-color: rgba(155,87,68,.25); background: rgba(255,252,247,.7); color: #914e3c; }
+.finder-import, .finder-card { border-color: #dfd1c5; box-shadow: 0 12px 30px rgba(76,48,37,.07); }
+.finder-import-row button, .finder-google-button, .finder-analyze-button { background: #9b5945; }
+.finder-import-row .finder-paste-button { border-color: #c8a99b; color: #7e493a; }
+.finder-auth-gate { border-color: #d3b7a9; background: #fffaf5; }
+.finder-card-title a, .finder-ai-sources a, .finder-fact-grid details > a { color: #804a3b; }
+.finder-card-meta span { color: #8c746b; }
+.finder-score.score-high, .finder-ai-big-score { border-color: #bf755d; }
+.finder-score.score-mid { border-color: #bd9650; }
+.finder-score.score-low { border-color: #9f6170; }
+.finder-ai-summary { border-color: #e1d2c7; background: #fffaf6; }
+.finder-review-hero { border-bottom-color: #eadbd1; }
+.finder-ai-verdict { background: #f4e1d7; color: #8b4d3b; }
+.finder-confidence { color: #765f57; }
+.finder-confidence svg { color: #a55e49; }
+.finder-confidence em { color: #9a8177; }
+.finder-review-section { border-color: #eadbd1; background: #fffdfb; }
+.finder-review-section p { color: #625a55; }
+.finder-review-section p::before { color: #b46d56; }
+.finder-review-section.cautions { border-color: #ead9b9; background: #fffaf0; }
+.finder-review-section.cautions h4, .finder-review-section.cautions p::before { color: #a3743c; }
+.finder-fact-grid details { border-color: #e2d5cd; background: #fffdfb; }
+.finder-fact-grid summary span { color: #806e66; }
+.finder-fact-grid .confidence-high { background: #f1dfd7; color: #8b4c3b; }
+.finder-fact-grid .confidence-medium { background: #f4ebd5; color: #86672f; }
+.finder-fact-grid .confidence-low { background: #eee1e6; color: #865362; }
+.finder-unknowns { border-color: #d8c8c0; background: rgba(255,252,248,.65); }
+.finder-unknowns li { color: #675d58; }
+.finder-ai-sources { border-top-color: #eadbd1; }
+.finder-verification-note { color: #8b7d76; }
+.finder-preferences { border-color: #ddcfc5; background: rgba(255,252,248,.74); }
+.finder-preferences summary { color: #754738; }
+.finder-preferences summary span { color: #986453; }
+
 @media (max-width: 760px) {
   .finder-hero h1 { font-size: clamp(3rem,15vw,5rem); }
   .finder-import-row button { width: 100%; }

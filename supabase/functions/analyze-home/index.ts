@@ -212,7 +212,7 @@ OUTPUT
   const analysisPayload = {
     systemInstruction: { parts: [{ text: analysisSystemPrompt }] },
     contents: [{ role: 'user', parts: [{ text: `WHAT NICOLE WANTS IN A HOME:\n<preferences>\n${preferences.slice(0, 2_000)}\n</preferences>\n\nAddress: ${address}\n\nPUBLIC WEB RESEARCH:\n${researchForAnalysis}${verifiedSnapshot ? `\n\nHUMAN-VERIFIED CURRENT LISTING EVIDENCE:\n${verifiedSnapshot.evidence}\nSource URL: ${verifiedSnapshot.sourceUrl}` : ''}\n\nAREA & OFFICIAL-RISK API EVIDENCE:\n${areaEvidenceForAnalysis}\n\nOPTIONAL LISTING DESCRIPTION:\n${description.slice(0, 6_000) || 'Not supplied.'}\n\nPHOTO OBSERVATIONS:\n${photoEvidence.slice(0, 1_800)}` }] }],
-    generationConfig: { temperature: 0, maxOutputTokens: 2200, responseMimeType: 'application/json', responseJsonSchema: schema },
+    generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json', responseJsonSchema: schema },
   };
   const geminiResponse = await geminiWithRetry(analysisPayload);
   if (!geminiResponse.ok) {
@@ -231,5 +231,8 @@ OUTPUT
     analysis.sources = [...sourcesByUrl.values()].slice(0, 8);
     if (analysis.confirmedFacts.length === 0 && analysis.confidence <= 15) analysis.fitScore = 50;
     return new Response(JSON.stringify(analysis), { headers });
-  } catch { return new Response(JSON.stringify({ error: 'Gemini returned an unexpected response.' }), { status: 502, headers }); }
+  } catch (error) {
+    console.error('Gemini parse error', String(error), geminiText(completion).slice(0, 500));
+    return new Response(JSON.stringify({ error: 'Gemini returned an unexpected response.' }), { status: 502, headers });
+  }
 });

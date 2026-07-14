@@ -88,7 +88,9 @@ Deno.serve(async (request) => {
 
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
   if (!geminiKey) return new Response(JSON.stringify({ error: 'Gemini is not configured.' }), { status: 503, headers });
-  const gemini = (payload: unknown) => fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent', {
+  // The current Flash alias keeps new free-tier keys on a supported model as
+  // Google retires individual versioned models.
+  const gemini = (payload: unknown) => fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
     method: 'POST', headers: { 'x-goog-api-key': geminiKey, 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   });
   const geminiWithRetry = async (payload: unknown) => {

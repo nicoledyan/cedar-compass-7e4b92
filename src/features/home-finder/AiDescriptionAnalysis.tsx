@@ -7,7 +7,7 @@ export default function AiDescriptionAnalysis({ home, preferences, autoAnalyze =
   const [signedInEmail, setSignedInEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<AiHomeAnalysis | null>(home.aiScore === undefined ? null : { fitScore: home.aiScore, verdict: home.aiVerdict ?? '', summary: home.aiSummary ?? '', observations: home.aiObservations ?? [], cautions: home.aiCautions ?? [], suggestions: [], facts: { price: null, bedrooms: null, bathrooms: null, hoa: null, parking: null, sunroom: null, screenedPorch: null, coveredPorch: null, showerWindow: null } });
+  const [analysis, setAnalysis] = useState<AiHomeAnalysis | null>(home.aiScore === undefined ? null : { fitScore: home.aiScore, verdict: home.aiVerdict ?? '', summary: home.aiSummary ?? '', observations: home.aiObservations ?? [], cautions: home.aiCautions ?? [] });
   const autoStarted = useRef(false);
 
   useEffect(() => {

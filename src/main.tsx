@@ -9,4 +9,6 @@ import './features/springs-guide/springs-guide.css';
 
 registerSW({ immediate: true });
 
+if (new URLSearchParams(window.location.search).has('shared')) window.location.hash = '/home-finder';
+
 seedIfNeeded().then(() => ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><HashRouter><App /></HashRouter></React.StrictMode>));

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, ExternalLink, FileJson, Flame, Home, Plus, Save, Trash2, Upload, X } from 'lucide-react';
+import { ClipboardPaste, Download, ExternalLink, FileJson, Flame, Home, Plus, Save, Share2, Trash2, Upload, X } from 'lucide-react';
 import { blankHome, HOME_STORAGE_KEY, scoreHome, validZillowUrl } from './homeFinder';
 import { exportCsv, exportJson, parseBackup } from './backup';
 import AiDescriptionAnalysis from './AiDescriptionAnalysis';
@@ -16,7 +16,13 @@ export default function HomeFinderPage() {
   const [urlError, setUrlError] = useState('');
   const [backupMessage, setBackupMessage] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [autoAnalyzeId, setAutoAnalyzeId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get('url') || params.get('text')?.match(/https?:\/\/\S+/)?.[0] || '';
+    if (validZillowUrl(shared)) setUrl(shared);
+  }, []);
   useEffect(() => { localStorage.setItem(HOME_STORAGE_KEY, JSON.stringify(homes)); }, [homes]);
   const ranked = useMemo(() => [...homes].sort((a, b) => scoreHome(b).overall - scoreHome(a).overall), [homes]);
 
@@ -24,7 +30,11 @@ export default function HomeFinderPage() {
     if (!validZillowUrl(url)) { setUrlError('Paste a complete zillow.com listing URL.'); return; }
     if (homes.some((home) => home.zillowUrl.replace(/\/$/, '') === url.trim().replace(/\/$/, ''))) { setUrlError('That Zillow listing is already saved.'); return; }
     const home = blankHome(url);
-    setHomes((current) => [home, ...current]); setUrl(''); setUrlError(''); setEditingId(home.id);
+    setHomes((current) => [home, ...current]); setUrl(''); setUrlError(''); setEditingId(home.id); setAutoAnalyzeId(home.id);
+  };
+  const pasteLink = async () => {
+    try { const value = await navigator.clipboard.readText(); setUrl(value); setUrlError(validZillowUrl(value) ? '' : 'The clipboard does not contain a Zillow listing link.'); }
+    catch { setUrlError('Press and hold in the link box, then choose Paste.'); }
   };
   const update = (next: HomeRecord) => setHomes((current) => current.map((home) => home.id === next.id ? { ...next, updatedAt: new Date().toISOString() } : home));
   const remove = (home: HomeRecord) => { if (window.confirm(`Delete ${home.address}? This cannot be undone.`)) { setHomes((current) => current.filter((item) => item.id !== home.id)); if (editingId === home.id) setEditingId(null); } };
@@ -41,27 +51,27 @@ export default function HomeFinderPage() {
 
   return <main className="finder-page"><div className="finder-shell">
     <header className="finder-hero"><p className="finder-eyebrow">Would I actually enjoy living here?</p><h1>Home Finder</h1><p>Save Zillow candidates, add what you know, and compare them against the life you actually want—not resale theory.</p></header>
-    <section className="finder-import"><div><label htmlFor="zillow-url">Zillow listing URL</label><p>The page saves the link locally. Zillow doesn’t provide the listing facts through this import, so you’ll confirm those next.</p></div><div className="finder-import-row"><input id="zillow-url" type="url" value={url} onChange={(event) => { setUrl(event.target.value); setUrlError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') addHome(); }} placeholder="https://www.zillow.com/homedetails/..." /><button type="button" onClick={addHome}><Plus size={18}/> Save home</button></div>{urlError && <p className="finder-error">{urlError}</p>}</section>
+    <section className="finder-import"><div><label htmlFor="zillow-url">Add a listing</label><p>On your phone, copy a Zillow link and tap Paste link. If Cedar Compass is installed on a supported Android phone, you can share the link straight here.</p></div><div className="finder-import-row"><input id="zillow-url" type="url" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); setUrlError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') addHome(); }} placeholder="https://www.zillow.com/homedetails/..." /><button className="finder-paste-button" type="button" onClick={() => void pasteLink()}><ClipboardPaste size={18}/> Paste link</button><button type="button" onClick={addHome}><Plus size={18}/> Add & analyze</button></div>{urlError && <p className="finder-error">{urlError}</p>}<p className="finder-share-note"><Share2 size={14}/> Just the link is enough. If you are signed in, research starts automatically; description and photos are optional.</p></section>
     <section className="finder-backup" aria-labelledby="backup-heading"><div><h2 id="backup-heading">Keep a copy</h2><p>Download a restorable JSON backup or a spreadsheet-friendly CSV. Restoring JSON replaces the homes saved in this browser.</p></div><div className="finder-backup-actions"><button type="button" onClick={() => exportJson(homes)} disabled={!homes.length}><FileJson size={17}/> JSON backup</button><button type="button" onClick={() => exportCsv(homes)} disabled={!homes.length}><Download size={17}/> Export CSV</button><button type="button" onClick={() => fileInput.current?.click()}><Upload size={17}/> Restore JSON</button><input ref={fileInput} type="file" accept="application/json,.json" onChange={(event) => void restore(event.target.files?.[0])}/></div>{backupMessage && <p className="finder-backup-message" role="status">{backupMessage}</p>}</section>
-    {ranked.length === 0 ? <section className="finder-empty"><Home size={32}/><h2>No homes saved yet</h2><p>Paste your first Zillow listing above. Everything stays in this browser.</p></section> : <section><div className="finder-list-head"><h2>{ranked.length} saved {ranked.length === 1 ? 'home' : 'homes'}</h2><span>Ranked by your current score</span></div><div className="finder-grid">{ranked.map((home) => <HomeCard key={home.id} home={home} editing={editingId === home.id} onEdit={() => setEditingId(editingId === home.id ? null : home.id)} onUpdate={update} onDelete={() => remove(home)} />)}</div></section>}
-    <p className="finder-privacy">Records and scores are saved only in this browser. Zillow links remain the live source for listing status and price; imported facts are not automatically verified.</p>
+    {ranked.length === 0 ? <section className="finder-empty"><Home size={32}/><h2>No homes saved yet</h2><p>Paste your first Zillow listing above. Everything stays in this browser.</p></section> : <section><div className="finder-list-head"><h2>{ranked.length} saved {ranked.length === 1 ? 'home' : 'homes'}</h2><span>Ranked by your current score</span></div><div className="finder-grid">{ranked.map((home) => <HomeCard key={home.id} home={home} editing={editingId === home.id} autoAnalyze={autoAnalyzeId === home.id} onAutoAnalyzeDone={() => setAutoAnalyzeId(null)} onEdit={() => setEditingId(editingId === home.id ? null : home.id)} onUpdate={update} onDelete={() => remove(home)} />)}</div></section>}
+    <p className="finder-privacy">Records and scores are saved only in this browser. When you request AI review, the address, listing link, optional description, and selected photos are sent through your private Supabase function to Groq. Photos are not saved by Cedar Compass. Zillow remains the live source for status and price; AI research is not automatically verified.</p>
   </div></main>;
 }
 
-function HomeCard({ home, editing, onEdit, onUpdate, onDelete }: { home: HomeRecord; editing: boolean; onEdit: () => void; onUpdate: (home: HomeRecord) => void; onDelete: () => void }) {
+function HomeCard({ home, editing, autoAnalyze, onAutoAnalyzeDone, onEdit, onUpdate, onDelete }: { home: HomeRecord; editing: boolean; autoAnalyze: boolean; onAutoAnalyzeDone: () => void; onEdit: () => void; onUpdate: (home: HomeRecord) => void; onDelete: () => void }) {
   const score = scoreHome(home);
   return <article className={`finder-card${score.dealBreakers.length ? ' has-breaker' : ''}`}>
     <div className="finder-card-top"><div className={`finder-score score-${score.overall >= 75 ? 'high' : score.overall >= 60 ? 'mid' : 'low'}`}><strong>{score.overall}</strong><span>overall</span></div><div className="finder-card-title"><h3>{home.address}</h3><a href={home.zillowUrl} target="_blank" rel="noreferrer">Open Zillow <ExternalLink size={14}/></a></div><button className="finder-icon-button" type="button" onClick={onEdit} aria-label={editing ? 'Close details' : 'Edit home'}>{editing ? <X size={19}/> : <span>Edit</span>}</button></div>
     <div className="finder-score-row"><Score label="Lifestyle" value={score.lifestyle}/><Score label="House" value={score.house}/><Score label="Commute" value={score.commute}/><Score label="Risk" value={score.risk}/><Score label="Confidence" value={score.confidence}/></div>
     {score.dealBreakers.length > 0 && <div className="finder-breakers"><Flame size={17}/><div><strong>Needs a hard look</strong>{score.dealBreakers.map((item) => <p key={item}>{item}</p>)}</div></div>}
     {(score.strengths.length > 0 || score.weaknesses.length > 0) && <div className="finder-reasons"><div><strong>Working for it</strong>{score.strengths.map((item) => <p key={item}>+ {item}</p>)}</div><div><strong>Working against it</strong>{score.weaknesses.length ? score.weaknesses.map((item) => <p key={item}>− {item}</p>) : <p>Nothing flagged yet.</p>}</div></div>}
-    {editing && <HomeForm home={home} onUpdate={onUpdate} onDelete={onDelete} onDone={onEdit} />}
+    {editing && <HomeForm home={home} autoAnalyze={autoAnalyze} onAutoAnalyzeDone={onAutoAnalyzeDone} onUpdate={onUpdate} onDelete={onDelete} onDone={onEdit} />}
   </article>;
 }
 
 function Score({ label, value }: { label: string; value: number }) { return <div><span>{label}</span><strong>{value}</strong></div>; }
 
-function HomeForm({ home, onUpdate, onDelete, onDone }: { home: HomeRecord; onUpdate: (home: HomeRecord) => void; onDelete: () => void; onDone: () => void }) {
+function HomeForm({ home, autoAnalyze, onAutoAnalyzeDone, onUpdate, onDelete, onDone }: { home: HomeRecord; autoAnalyze: boolean; onAutoAnalyzeDone: () => void; onUpdate: (home: HomeRecord) => void; onDelete: () => void; onDone: () => void }) {
   const [draft, setDraft] = useState(home);
   const set = <K extends keyof HomeRecord>(key: K, value: HomeRecord[K]) => setDraft((current) => ({ ...current, [key]: value }));
   return <form className="finder-form" onSubmit={(event) => { event.preventDefault(); onUpdate(draft); onDone(); }}>
@@ -69,7 +79,7 @@ function HomeForm({ home, onUpdate, onDelete, onDone }: { home: HomeRecord; onUp
     <fieldset className="finder-risk-fieldset"><legend>Fire and flood risk</legend><p className="finder-field-note">Use an official risk source when possible. High wildfire risk caps the score and creates a deal-breaker warning.</p><div className="finder-fields"><SelectField label="Wildfire risk" value={draft.wildfireRisk} onChange={(value) => set('wildfireRisk', value as HomeRecord['wildfireRisk'])} options={riskOptions}/><SelectField label="Flood risk" value={draft.floodRisk} onChange={(value) => set('floodRisk', value as HomeRecord['floodRisk'])} options={riskOptions}/></div></fieldset>
     <fieldset><legend>House itself</legend><div className="finder-rating-grid">{([['mountainViews','Mountain views'],['condition','Move-in condition'],['yard','Usable yard'],['naturalLight','Natural light'],['layout','Layout and entertaining']] as const).map(([key,label]) => <RatingField key={key} label={label} value={draft[key]} onChange={(value) => set(key, value)}/>)}</div><div className="finder-checks"><CheckField label="Sunroom" checked={draft.sunroom} onChange={(value) => set('sunroom', value)}/><CheckField label="Screened porch" checked={draft.screenedPorch} onChange={(value) => set('screenedPorch', value)}/><CheckField label="Covered porch" checked={draft.coveredPorch} onChange={(value) => set('coveredPorch', value)}/><CheckField label="Window in shower" checked={draft.showerWindow} onChange={(value) => set('showerWindow', value)}/></div></fieldset>
     <fieldset><legend>Neighborhood and lifestyle</legend><div className="finder-rating-grid">{([['neighborhoodFeel','Established character'],['walkability','Walkability'],['safety','Safety and comfort'],['noise','Quiet / low noise'],['amenities','Useful nearby places']] as const).map(([key,label]) => <RatingField key={key} label={label} value={draft[key]} onChange={(value) => set(key, value)}/>)}</div></fieldset>
-    <AiDescriptionAnalysis draft={draft} setDraft={setDraft}/>
+    <AiDescriptionAnalysis draft={draft} setDraft={setDraft} autoAnalyze={autoAnalyze} onAutoAnalyzeDone={onAutoAnalyzeDone}/>
     <fieldset><legend>Estimated drive time</legend><div className="finder-fields commute-fields">{([['downtownMinutes','Downtown'],['gardenMinutes','Garden of the Gods'],['blackSheepMinutes','The Black Sheep'],['oldColoradoCityMinutes','Old Colorado City'],['redRockMinutes','Red Rock Canyon'],['manitouMinutes','Manitou Springs']] as const).map(([key,label]) => <NumberField key={key} label={`${label} (min)`} value={draft[key]} onChange={(value) => set(key, value)}/>)}</div></fieldset>
     <fieldset><legend>Notes</legend><textarea value={draft.notes} onChange={(event) => set('notes', event.target.value)} placeholder="What did you notice in the photos, showing, street, or disclosure?" rows={4}/></fieldset>
     <div className="finder-form-actions"><button className="finder-delete" type="button" onClick={onDelete}><Trash2 size={17}/> Delete record</button><button className="finder-save" type="submit"><Save size={17}/> Save assessment</button></div>

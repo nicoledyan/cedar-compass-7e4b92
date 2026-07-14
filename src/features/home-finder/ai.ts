@@ -23,6 +23,11 @@ export interface AiHomeAnalysis {
   suggestions: AiSuggestion[];
 }
 
+export interface ListingPhoto {
+  name: string;
+  dataUrl: string;
+}
+
 export async function getSession(): Promise<Session | null> {
   if (!supabase) return null;
   return (await supabase.auth.getSession()).data.session;
@@ -36,9 +41,23 @@ export async function sendSignInLink(email: string) {
 
 export async function signOut() { await supabase?.auth.signOut(); }
 
-export async function analyzeDescription(home: HomeRecord): Promise<AiHomeAnalysis> {
+export async function prepareListingPhotos(files: FileList | File[]): Promise<ListingPhoto[]> {
+  const selected = Array.from(files).filter((file) => file.type.startsWith('image/')).slice(0, 5);
+  return Promise.all(selected.map(async (file) => {
+    const source = await createImageBitmap(file);
+    const scale = Math.min(1, 1400 / Math.max(source.width, source.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(source.width * scale));
+    canvas.height = Math.max(1, Math.round(source.height * scale));
+    canvas.getContext('2d')?.drawImage(source, 0, 0, canvas.width, canvas.height);
+    source.close();
+    return { name: file.name, dataUrl: canvas.toDataURL('image/jpeg', .72) };
+  }));
+}
+
+export async function analyzeListing(home: HomeRecord, photos: ListingPhoto[] = []): Promise<AiHomeAnalysis> {
   if (!supabase) throw new Error('AI analysis is not configured yet.');
-  const { data, error } = await supabase.functions.invoke<AiHomeAnalysis>('analyze-home', { body: { address: home.address, description: home.listingDescription } });
+  const { data, error } = await supabase.functions.invoke<AiHomeAnalysis>('analyze-home', { body: { address: home.address, listingUrl: home.zillowUrl, description: home.listingDescription, photos: photos.map((photo) => photo.dataUrl) } });
   if (error) {
     const context = 'context' in error ? error.context : null;
     if (context instanceof Response) {

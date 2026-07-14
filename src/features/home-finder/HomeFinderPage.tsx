@@ -76,7 +76,12 @@ export default function HomeFinderPage() {
 }
 
 function HomeCard({ home, preferences, editing, autoAnalyze, onEdit, onUpdate, onDelete }: { home: HomeRecord; preferences: string; editing: boolean; autoAnalyze: boolean; onEdit: () => void; onUpdate: (home: HomeRecord) => void; onDelete: () => void }) {
-  const complete = (analysis: AiHomeAnalysis) => onUpdate({ ...home, aiScore: analysis.fitScore, aiVerdict: analysis.verdict, aiSummary: analysis.summary, aiObservations: analysis.observations, aiCautions: analysis.cautions, aiConfidence: analysis.confidence, aiConfirmedFacts: analysis.confirmedFacts, aiUnknowns: analysis.unknowns, aiSources: analysis.sources });
+  const complete = (analysis: AiHomeAnalysis) => {
+    const currentConfidence = home.aiConfidence ?? -1;
+    // A flaky public search must not silently replace a richer prior review with a thin result.
+    if (analysis.confidence + 15 < currentConfidence) return;
+    onUpdate({ ...home, aiScore: analysis.fitScore, aiVerdict: analysis.verdict, aiSummary: analysis.summary, aiObservations: analysis.observations, aiCautions: analysis.cautions, aiConfidence: analysis.confidence, aiConfirmedFacts: analysis.confirmedFacts, aiUnknowns: analysis.unknowns, aiSources: analysis.sources });
+  };
   const score = home.aiScore;
   return <article className="finder-card finder-ai-card"><div className="finder-card-top"><div className={`finder-score score-${score === undefined ? 'pending' : score >= 75 ? 'high' : score >= 60 ? 'mid' : 'low'}`}><strong>{score ?? '—'}</strong><span>fit score</span></div><div className="finder-card-title"><h3>{home.address}</h3><div className="finder-card-meta"><a href={home.zillowUrl} target="_blank" rel="noreferrer">Open listing <ExternalLink size={14}/></a>{home.aiConfidence !== undefined && <span>{home.aiConfidence}% evidence confidence</span>}</div>{home.aiVerdict && <p className="finder-card-verdict">{home.aiVerdict}</p>}</div><button className="finder-icon-button" type="button" onClick={onEdit}>{editing ? <X size={19}/> : <span>{score === undefined ? 'Review' : 'Full review'}</span>}</button></div>{home.aiSummary && !editing && <p className="finder-card-summary">{home.aiSummary}</p>}{editing && <><AiDescriptionAnalysis home={home} preferences={preferences} autoAnalyze={autoAnalyze} onComplete={complete}/><button className="finder-delete finder-ai-delete" type="button" onClick={onDelete}><Trash2 size={16}/> Delete listing</button></>}</article>;
 }

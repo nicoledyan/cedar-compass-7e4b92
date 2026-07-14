@@ -55,9 +55,21 @@ Deno.serve(async (request) => {
   const groqKey = Deno.env.get('GROQ_API_KEY');
   if (!groqKey) return new Response(JSON.stringify({ error: 'Groq is not configured.' }), { status: 503, headers });
   const groq = (payload: unknown) => fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const groqWithRetry = async (payload: unknown) => {
+    let response = await groq(payload);
+    if (response.status === 429) {
+      const retrySeconds = Math.min(8, Math.max(1, Number(response.headers.get('retry-after')) || 3));
+      await response.text();
+      await new Promise((resolve) => setTimeout(resolve, retrySeconds * 1000));
+      response = await groq(payload);
+    }
+    return response;
+  };
 
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const cacheKey = `v5-${address.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+  // v8 contains the already verified active-listing research; retain it rather than
+  // replacing it with a weaker pending-listing search result on a later rerun.
+  const cacheKey = `v8-${address.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
   let cached: { research: string; fetched_at: string } | null = null;
   if (serviceKey) {
     const cacheResponse = await fetch(`${supabaseUrl}/rest/v1/listing_research_cache?cache_key=eq.${encodeURIComponent(cacheKey)}&select=research,fetched_at&limit=1`, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } });
@@ -66,34 +78,37 @@ Deno.serve(async (request) => {
   }
 
   const researchPrompt = (focus: string) => ({
-    model: 'groq/compound', temperature: 0, max_completion_tokens: 2200,
-    messages: [{ role: 'user', content: `Act as a meticulous listing researcher. Find the CURRENT residential listing for the exact address "${address}". ${focus}
-
-SEARCH METHOD
-1. Search the quoted full address plus "for sale", then the address plus Redfin, Realtor, Homes.com, Trulia, and brokerage/MLS.
-2. You may use Zillow search-result snippets, but do not open or scrape Zillow.
-3. Open at least one exact-address non-Zillow listing page. Read the FULL agent remarks/description, not merely the search snippet or fact table.
-4. If a page blocks access, say BLOCKED; do not pretend it was read. Keep searching for an accessible MLS mirror.
-
-IDENTITY AND ACCURACY
-- Reject any result that does not explicitly show this exact street address. Never blend a nearby or similarly named home.
-- Separate current listing statements, older sale records, estimates, and your own inference.
-- Absence of an HOA field does NOT prove no HOA. Absence of a feature in one source does NOT prove it is absent.
-- Quote or closely transcribe the exact phrase supporting every important fact. Never invent commute, risk, safety, noise, or neighborhood claims.
-
-RETURN AN EVIDENCE LEDGER covering price, beds, baths, square feet, year built, property type, HOA, garage/parking, lot/yard/fence, mountain/Pikes Peak view, condition and every named update with year, natural light/windows, layout/entertaining, basement, balcony/deck/patio/porch, siding/roof/mechanicals, and nearby-place claims. For each item include: VALUE | EXACT SUPPORTING TEXT | SOURCE URL | FULL PAGE or SNIPPET | CURRENT or HISTORICAL | CONFIDENCE. End with contradictions and still-unknown facts. Preserve the full substance of the agent remarks. Zillow link identifier: ${body.listingUrl ?? 'not supplied'}` }],
+    model: 'groq/compound-mini', temperature: 0, max_completion_tokens: 900,
+    messages: [{ role: 'user', content: `Search the public web for the CURRENT for-sale listing at the exact address "${address}". ${focus}
+Use the quoted full address in one focused search across Redfin, Realtor, Homes.com, Trulia, and MLS/brokerage mirrors. Zillow may appear only as a search snippet; do not open or scrape it. Reject every result that does not explicitly match the exact address and never blend nearby homes.
+Return a compact evidence ledger with the exact source wording and URL for: price, beds, baths, square feet, year built, HOA, garage/parking, lot and fenced yard, mountain/Pikes Peak views, condition and dated updates, natural light/windows, layout, basement, balcony/deck/patio, siding/roof/mechanicals, and listing-description claims. Mark each item CURRENT or HISTORICAL and FULL PAGE or SNIPPET. Absence of a field is unknown, not "no." Do not infer commute, hazards, safety, noise, or condition. Preserve the important substance of the agent remarks. Zillow identifier: ${body.listingUrl ?? 'not supplied'}` }],
   });
   const cacheAge = cached ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity;
   let research = cacheAge < 72 * 60 * 60 * 1000 ? cached!.research : '';
   if (!research) {
-    const researchResponse = await groq(researchPrompt('Search the quoted full address and MLS listing across Redfin, Trulia, Homes.com, Realtor.com, Coldwell Banker, and local brokerage sites. Prioritize current MLS mirrors.'));
+    const researchResponse = await groqWithRetry(researchPrompt('Prioritize the current Redfin or MLS-mirror result.'));
     if (researchResponse.ok) {
       const researchCompletion = await researchResponse.json();
       const message = researchCompletion?.choices?.[0]?.message;
       research = message?.content ?? '';
       // Compound models sometimes place useful URLs/tool evidence outside content.
       if (Array.isArray(message?.executed_tools) && message.executed_tools.length) {
-        research += `\n\nTOOL EVIDENCE (machine supplied):\n${JSON.stringify(message.executed_tools).slice(0, 12000)}`;
+        research += `\n\nTOOL EVIDENCE (machine supplied):\n${JSON.stringify(message.executed_tools).slice(0, 6000)}`;
+      }
+      // Fact tables often omit the agent remarks. Use one additional focused search only when
+      // the first result lacks the preference-related features most likely to live in that text.
+      if (research && !/garage|carport|fenc|hoa/i.test(research)) {
+        const detailsResponse = await groqWithRetry({
+          model: 'groq/compound-mini', temperature: 0, max_completion_tokens: 650,
+          messages: [{ role: 'user', content: `For the exact current listing at "${address}", answer ONLY these questions from the full agent remarks or current listing facts: (1) Does it explicitly state a garage, carport, or covered parking? Include the number/type. (2) Does it explicitly state the yard is fenced? (3) Does it explicitly say no HOA, an HOA fee, or HOA status? Search Redfin plus an accessible MLS/brokerage mirror. Quote the exact support and source URL for each answer. If absent, say UNKNOWN—never infer it. Do not mix another property.` }],
+        });
+        if (detailsResponse.ok) {
+          const detailsCompletion = await detailsResponse.json();
+          const detailsMessage = detailsCompletion?.choices?.[0]?.message;
+          const detailText = detailsMessage?.content ?? '';
+          const detailTools = Array.isArray(detailsMessage?.executed_tools) ? JSON.stringify(detailsMessage.executed_tools).slice(0, 6000) : '';
+          if (detailText || detailTools) research += `\n\nFOCUSED AGENT-REMARKS SEARCH:\n${detailText}\n${detailTools}`;
+        } else console.error('Groq details research error', detailsResponse.status, (await detailsResponse.text()).slice(0, 500));
       }
       if (research && serviceKey) {
         const cacheWrite = await fetch(`${supabaseUrl}/rest/v1/listing_research_cache?on_conflict=cache_key`, { method: 'POST', headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ cache_key: cacheKey, address, research, fetched_at: new Date().toISOString() }) });
@@ -133,6 +148,7 @@ EVIDENCE RULES
 - Do not turn absence into a negative. "Not mentioned" means unknown, not "does not have".
 - HOA may be called "none" only when a current exact-address source explicitly says no HOA/$0, or two independent current sources agree. Otherwise report unconfirmed or the conflict and NEVER penalize the score.
 - Never invent or infer wildfire/flood risk, safety/crime, drive time, traffic noise, structural condition, orientation, school quality, or neighborhood character. Marketing claims must be attributed as listing claims.
+- A city or ZIP code alone is not evidence of neighborhood character, nearby amenities, quietness, or convenient access. Do not list those as positives without explicit sourced facts.
 - Distinguish cosmetic updates from inspected structural/mechanical condition. Recommend age-appropriate checks when year/material evidence supports them, without declaring defects.
 - Every confirmedFact needs short supporting evidence and the URL that supports it. If no URL exists because it came from the user-pasted description, use "user-supplied-description".
 - Return only URLs actually present in the supplied research. Never manufacture a URL.

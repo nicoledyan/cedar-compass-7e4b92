@@ -57,7 +57,7 @@ Deno.serve(async (request) => {
   const groq = (payload: unknown) => fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const cacheKey = `v4-${address.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+  const cacheKey = `v5-${address.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
   let cached: { research: string; fetched_at: string } | null = null;
   if (serviceKey) {
     const cacheResponse = await fetch(`${supabaseUrl}/rest/v1/listing_research_cache?cache_key=eq.${encodeURIComponent(cacheKey)}&select=research,fetched_at&limit=1`, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } });
@@ -66,7 +66,7 @@ Deno.serve(async (request) => {
   }
 
   const researchPrompt = (focus: string) => ({
-    model: 'groq/compound-mini', temperature: 0, max_completion_tokens: 2000,
+    model: 'groq/compound', temperature: 0, max_completion_tokens: 2200,
     messages: [{ role: 'user', content: `Act as a meticulous listing researcher. Find the CURRENT residential listing for the exact address "${address}". ${focus}
 
 SEARCH METHOD
@@ -120,8 +120,9 @@ RETURN AN EVIDENCE LEDGER covering price, beds, baths, square feet, year built, 
   }
 
   const analysisPayload = {
-      model: 'openai/gpt-oss-120b', temperature: 0, max_completion_tokens: 2600,
-      response_format: { type: 'json_schema', json_schema: { name: 'home_listing_analysis', strict: true, schema } },
+      // A separate model family avoids colliding with Compound's GPT-OSS free-tier token window.
+      model: 'llama-3.3-70b-versatile', temperature: 0, max_completion_tokens: 2200,
+      response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: `You are a skeptical real-estate evidence editor and personal-fit reviewer. First reconcile the supplied evidence into a fact ledger; only then score the exact home for Nicole.
 
@@ -138,10 +139,12 @@ EVIDENCE RULES
 
 SCORING
 - Score against the supplied priorities, weighted by their wording. Confirmed positives raise fit; confirmed conflicts lower it; unknowns primarily lower confidence, not fit.
+- If no material property facts are available, use a neutral fitScore of 50 and very low confidence. Never punish a home with a low fit score merely because research failed.
 - A score above 85 requires strong evidence for most important priorities. Hard conflicts such as over-budget or too few beds should materially reduce it.
 - confidence measures evidence completeness/reliability, not how good the home is.
 
 OUTPUT
+- Return one JSON object matching this exact JSON Schema: ${JSON.stringify(schema)}
 - verdict: one candid sentence. summary: 2-4 useful sentences explaining the biggest fit drivers and tradeoffs.
 - observations: 4-8 evidence-backed strengths; cautions: only real tradeoffs, conflicts, age-appropriate checks, and important unknowns. Do not put positives in cautions.
 - unknowns: concise unanswered priority questions. Avoid duplicates across sections.
@@ -151,10 +154,10 @@ OUTPUT
       ],
   };
   let groqResponse = await groq(analysisPayload);
-  // The larger model has tighter free-tier limits. Preserve availability with the smaller model.
-  if (!groqResponse.ok && [429, 498, 503].includes(groqResponse.status)) {
-    console.warn('Groq 120b unavailable; retrying with 20b', groqResponse.status, (await groqResponse.text()).slice(0, 300));
-    groqResponse = await groq({ ...analysisPayload, model: 'openai/gpt-oss-20b', max_completion_tokens: 2200 });
+  // Preserve availability if the 70B quota is busy or JSON mode is temporarily unavailable.
+  if (!groqResponse.ok) {
+    console.warn('Groq 70b unavailable; retrying with 20b strict mode', groqResponse.status, (await groqResponse.text()).slice(0, 300));
+    groqResponse = await groq({ ...analysisPayload, model: 'openai/gpt-oss-20b', max_completion_tokens: 1800, response_format: { type: 'json_schema', json_schema: { name: 'home_listing_analysis', strict: true, schema } } });
   }
   if (!groqResponse.ok) {
     const detail = await groqResponse.text();
@@ -166,6 +169,8 @@ OUTPUT
   try {
     const analysis = JSON.parse(completion.choices?.[0]?.message?.content ?? '');
     if (!Number.isInteger(analysis.fitScore) || !Array.isArray(analysis.confirmedFacts) || !Array.isArray(analysis.unknowns)) throw new Error('Incomplete analysis');
+    analysis.sources = Array.isArray(analysis.sources) ? analysis.sources.filter((source: { url?: unknown }) => typeof source?.url === 'string' && /^https:\/\//.test(source.url)) : [];
+    if (analysis.confirmedFacts.length === 0 && analysis.confidence <= 15) analysis.fitScore = 50;
     return new Response(JSON.stringify(analysis), { headers });
   } catch { return new Response(JSON.stringify({ error: 'Groq returned an unexpected response.' }), { status: 502, headers }); }
 });

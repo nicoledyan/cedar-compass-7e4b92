@@ -6,6 +6,7 @@ import type { HomeRecord } from './types';
 export default function AiDescriptionAnalysis({ home, preferences, autoAnalyze = false, onComplete }: { home: HomeRecord; preferences: string; autoAnalyze?: boolean; onComplete: (analysis: AiHomeAnalysis) => void }) {
   const [signedInEmail, setSignedInEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [showingPrevious, setShowingPrevious] = useState(false);
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AiHomeAnalysis | null>(home.aiScore === undefined ? null : { fitScore: home.aiScore, verdict: home.aiVerdict ?? '', summary: home.aiSummary ?? '', observations: home.aiObservations ?? [], cautions: home.aiCautions ?? [], confidence: home.aiConfidence ?? 0, confirmedFacts: home.aiConfirmedFacts ?? [], unknowns: home.aiUnknowns ?? [], sources: home.aiSources ?? [] });
   const autoStarted = useRef(false);
@@ -16,9 +17,9 @@ export default function AiDescriptionAnalysis({ home, preferences, autoAnalyze =
   }, []);
 
   const analyze = async () => {
-    setMessage(''); setLoading(true);
+    setMessage(''); setShowingPrevious(false); setLoading(true);
     try { const result = await analyzeListing(home, preferences); setAnalysis(result); onComplete(result); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'The listing could not be reviewed.'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'The listing could not be reviewed.'); setShowingPrevious(Boolean(analysis)); }
     finally { setLoading(false); }
   };
 
@@ -31,8 +32,9 @@ export default function AiDescriptionAnalysis({ home, preferences, autoAnalyze =
     <div className="finder-ai-simple-head"><div><h4><Bot size={19}/> AI fit review</h4><p>Compared automatically with your saved home priorities.</p></div>{signedInEmail && <button type="button" className="finder-ai-signout" onClick={() => void signOut()}><LogOut size={15}/> Sign out</button>}</div>
     {!aiConfigured ? <p className="finder-error">AI is not configured.</p> : !signedInEmail ? <p className="finder-error">Sign in above to run the review.</p> : <button className="finder-analyze-button" type="button" onClick={() => void analyze()} disabled={loading}><Sparkles size={17}/>{loading ? 'Researching listing…' : analysis ? 'Run review again' : 'Research & score'}</button>}
     {loading && <div className="finder-ai-progress"><span/><p>Searching current MLS mirrors and comparing the home with your priorities. This can take about 20–40 seconds.</p></div>}
-    {message && <p className="finder-error" role="status">{message}</p>}
+    {message && <div className="finder-review-error" role="status"><strong>{message}</strong>{showingPrevious && <span>The result below is your previous saved review. It was not updated by this attempt.</span>}</div>}
     {analysis && !loading && <div className="finder-ai-summary">
+      {showingPrevious && <p className="finder-previous-label">Previous saved review · not updated</p>}
       <div className="finder-ai-big-score"><strong>{analysis.fitScore}</strong><span>/ 100 fit</span></div>
       <div className="finder-ai-intro"><p className="finder-ai-verdict">{analysis.verdict}</p><h3>{analysis.summary}</h3><div className="finder-confidence"><ShieldCheck size={16}/><span><strong>{analysis.confidence}% evidence confidence</strong> · Score and evidence certainty are separate.</span></div></div>
       {analysis.observations.length > 0 && <section className="finder-review-section strengths"><h4><CheckCircle2 size={18}/> Why it fits</h4>{analysis.observations.map((item) => <p key={item}>{item}</p>)}</section>}

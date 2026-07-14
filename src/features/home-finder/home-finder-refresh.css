@@ -39,6 +39,9 @@
 .finder-unknowns ul { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 24px; margin: 10px 0 0; padding-left: 18px; }
 .finder-unknowns li { color: #59655d; font-size: .8rem; line-height: 1.4; }
 .finder-verification-note { grid-column: 1/-1; margin: 0; color: #798079; font-size: .69rem; line-height: 1.5; }
+.finder-review-error { display: grid; gap: 4px; margin-top: 12px; padding: 12px 14px; border: 1px solid #e2b1a6; border-radius: 11px; background: #fff4f0; color: #993e32; font-size: .8rem; line-height: 1.4; }
+.finder-review-error span { color: #765c55; font-weight: 600; }
+.finder-previous-label { grid-column: 1/-1; margin: -4px -4px 0; padding: 7px 10px; border-radius: 8px; background: #f5e9df; color: #8a5944; font-size: .7rem; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .finder-backup { display: block; padding: 0; overflow: hidden; }
 .finder-backup > summary { padding: 15px 20px; cursor: pointer; color: #536159; font-size: .8rem; font-weight: 800; }
 .finder-backup-inner { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; padding: 0 20px 18px; }

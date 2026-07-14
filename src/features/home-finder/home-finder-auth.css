@@ -2,3 +2,12 @@
 .finder-inline-signout { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #68736b; cursor: pointer; }
 .finder-auth-gate { border-color: #aebfac; background: #f8fbf5; }
 .finder-import-row button:disabled { opacity: .55; cursor: wait; }
+.finder-google-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; margin-top: 14px; padding: 0 18px; border: 0; border-radius: 14px; background: #536f5a; color: white; font-weight: 800; cursor: pointer; }
+.finder-password-login { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-top: 14px; }
+.finder-password-login input { min-width: 0; min-height: 50px; border: 1px solid #bec6bf; border-radius: 14px; padding: 0 15px; background: white; }
+.finder-password-login button, .finder-account-menu button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 46px; padding: 0 15px; border: 0; border-radius: 12px; background: #536f5a; color: white; font-weight: 800; cursor: pointer; }
+.finder-account-menu { position: relative; }
+.finder-account-menu summary { cursor: pointer; color: #536f5a; font-weight: 800; }
+.finder-account-menu > div { position: absolute; z-index: 3; right: 0; top: 28px; width: min(320px, 85vw); display: grid; gap: 8px; padding: 13px; border: 1px solid #c8cec8; border-radius: 12px; background: white; box-shadow: 0 10px 25px rgba(42,50,43,.15); }
+.finder-account-menu input { min-height: 44px; border: 1px solid #c8cec8; border-radius: 10px; padding: 0 11px; }
+@media (max-width: 760px) { .finder-password-login { grid-template-columns: 1fr; } }

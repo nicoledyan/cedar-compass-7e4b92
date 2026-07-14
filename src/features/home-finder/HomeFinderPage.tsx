@@ -3,7 +3,7 @@ import { ClipboardPaste, Download, ExternalLink, FileJson, Flame, Home, LogIn, L
 import { blankHome, HOME_STORAGE_KEY, scoreHome, validZillowUrl } from './homeFinder';
 import { exportCsv, exportJson, parseBackup } from './backup';
 import AiDescriptionAnalysis from './AiDescriptionAnalysis';
-import { aiConfigured, getSession, sendSignInLink, signOut, supabase } from './ai';
+import { aiConfigured, getSession, signInWithGoogle, signOut, supabase } from './ai';
 import type { HomeRecord } from './types';
 import './home-finder.css';
 import './home-finder-auth.css';
@@ -21,7 +21,6 @@ export default function HomeFinderPage() {
   const [autoAnalyzeId, setAutoAnalyzeId] = useState<string | null>(null);
   const [signedInEmail, setSignedInEmail] = useState('');
   const [authReady, setAuthReady] = useState(false);
-  const [authEmail, setAuthEmail] = useState('');
   const [authMessage, setAuthMessage] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -47,9 +46,9 @@ export default function HomeFinderPage() {
     try { const value = await navigator.clipboard.readText(); setUrl(value); setUrlError(validZillowUrl(value) ? '' : 'The clipboard does not contain a Zillow listing link.'); }
     catch { setUrlError('Press and hold in the link box, then choose Paste.'); }
   };
-  const requestSignIn = async () => {
+  const googleSignIn = async () => {
     setAuthMessage(''); setAuthLoading(true);
-    try { await sendSignInLink(authEmail.trim()); setAuthMessage('Check your email and tap the secure sign-in link. Then come back here to paste a listing.'); }
+    try { await signInWithGoogle(); }
     catch (error) { setAuthMessage(error instanceof Error ? error.message : 'Sign-in failed.'); }
     finally { setAuthLoading(false); }
   };
@@ -68,12 +67,13 @@ export default function HomeFinderPage() {
 
   return <main className="finder-page"><div className="finder-shell">
     <header className="finder-hero"><p className="finder-eyebrow">Would I actually enjoy living here?</p><h1>Home Finder</h1><p>Save Zillow candidates, add what you know, and compare them against the life you actually want—not resale theory.</p></header>
-    {!authReady ? <section className="finder-import"><p>Checking secure AI sign-in…</p></section> : !aiConfigured ? <section className="finder-import"><p className="finder-error">AI setup is not available.</p></section> : !signedInEmail ? <section className="finder-import finder-auth-gate"><div><label htmlFor="finder-auth-email">Sign in before adding a listing</label><p>This protects the private Groq connection. You only need to do this occasionally; your phone will remember the session.</p></div><div className="finder-import-row"><input id="finder-auth-email" type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Your approved email"/><button type="button" disabled={authLoading || !authEmail.trim()} onClick={() => void requestSignIn()}><LogIn size={18}/>{authLoading ? 'Sending…' : 'Email sign-in link'}</button></div>{authMessage && <p className="finder-ai-notice" role="status">{authMessage}</p>}</section> : <section className="finder-import"><div className="finder-import-heading"><div><label htmlFor="zillow-url">Add a listing</label><p>Signed in as {signedInEmail}. Paste one Zillow link and the AI review will start automatically.</p></div><button type="button" className="finder-inline-signout" onClick={() => void signOut()}><LogOut size={14}/> Sign out</button></div><div className="finder-import-row"><input id="zillow-url" type="url" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); setUrlError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') addHome(); }} placeholder="https://www.zillow.com/homedetails/..." /><button className="finder-paste-button" type="button" onClick={() => void pasteLink()}><ClipboardPaste size={18}/> Paste link</button><button type="button" onClick={addHome}><Plus size={18}/> Add & analyze</button></div>{urlError && <p className="finder-error">{urlError}</p>}<p className="finder-share-note"><Share2 size={14}/> Just the link is enough. Description and photos are optional.</p></section>}
+    {!authReady ? <section className="finder-import"><p>Checking secure AI sign-in…</p></section> : !aiConfigured ? <section className="finder-import"><p className="finder-error">AI setup is not available.</p></section> : !signedInEmail ? <section className="finder-import finder-auth-gate"><div><label>Sign in before adding a listing</label><p>Use your existing Google account. No authentication email or separate password is needed, and your phone will remember the session.</p></div><button className="finder-google-button" type="button" disabled={authLoading} onClick={() => void googleSignIn()}><LogIn size={18}/>{authLoading ? 'Opening Google…' : 'Continue with Google'}</button>{authMessage && <p className="finder-ai-notice finder-error" role="status">{authMessage}</p>}</section> : <section className="finder-import"><div className="finder-import-heading"><div><label htmlFor="zillow-url">Add a listing</label><p>Signed in as {signedInEmail}. Paste one Zillow link and the AI review will start automatically.</p></div><button type="button" className="finder-inline-signout" onClick={() => void signOut()}><LogOut size={14}/> Sign out</button></div><div className="finder-import-row"><input id="zillow-url" type="url" inputMode="url" value={url} onChange={(event) => { setUrl(event.target.value); setUrlError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') addHome(); }} placeholder="https://www.zillow.com/homedetails/..." /><button className="finder-paste-button" type="button" onClick={() => void pasteLink()}><ClipboardPaste size={18}/> Paste link</button><button type="button" onClick={addHome}><Plus size={18}/> Add & analyze</button></div>{urlError && <p className="finder-error">{urlError}</p>}<p className="finder-share-note"><Share2 size={14}/> Just the link is enough. Description and photos are optional.</p></section>}
     <section className="finder-backup" aria-labelledby="backup-heading"><div><h2 id="backup-heading">Keep a copy</h2><p>Download a restorable JSON backup or a spreadsheet-friendly CSV. Restoring JSON replaces the homes saved in this browser.</p></div><div className="finder-backup-actions"><button type="button" onClick={() => exportJson(homes)} disabled={!homes.length}><FileJson size={17}/> JSON backup</button><button type="button" onClick={() => exportCsv(homes)} disabled={!homes.length}><Download size={17}/> Export CSV</button><button type="button" onClick={() => fileInput.current?.click()}><Upload size={17}/> Restore JSON</button><input ref={fileInput} type="file" accept="application/json,.json" onChange={(event) => void restore(event.target.files?.[0])}/></div>{backupMessage && <p className="finder-backup-message" role="status">{backupMessage}</p>}</section>
     {ranked.length === 0 ? <section className="finder-empty"><Home size={32}/><h2>No homes saved yet</h2><p>Paste your first Zillow listing above. Everything stays in this browser.</p></section> : <section><div className="finder-list-head"><h2>{ranked.length} saved {ranked.length === 1 ? 'home' : 'homes'}</h2><span>Ranked by your current score</span></div><div className="finder-grid">{ranked.map((home) => <HomeCard key={home.id} home={home} editing={editingId === home.id} autoAnalyze={autoAnalyzeId === home.id} onAutoAnalyzeDone={() => setAutoAnalyzeId(null)} onEdit={() => setEditingId(editingId === home.id ? null : home.id)} onUpdate={update} onDelete={() => remove(home)} />)}</div></section>}
     <p className="finder-privacy">Records and scores are saved only in this browser. When you request AI review, the address, listing link, optional description, and selected photos are sent through your private Supabase function to Groq. Photos are not saved by Cedar Compass. Zillow remains the live source for status and price; AI research is not automatically verified.</p>
   </div></main>;
 }
+
 
 function HomeCard({ home, editing, autoAnalyze, onAutoAnalyzeDone, onEdit, onUpdate, onDelete }: { home: HomeRecord; editing: boolean; autoAnalyze: boolean; onAutoAnalyzeDone: () => void; onEdit: () => void; onUpdate: (home: HomeRecord) => void; onDelete: () => void }) {
   const score = scoreHome(home);

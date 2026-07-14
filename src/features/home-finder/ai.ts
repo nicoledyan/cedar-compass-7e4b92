@@ -44,6 +44,12 @@ export async function sendSignInLink(email: string) {
   if (error) throw error;
 }
 
+export async function signInWithGoogle() {
+  if (!supabase) throw new Error('AI analysis is not configured yet.');
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}#/home-finder` } });
+  if (error) throw error;
+}
+
 export async function signOut() { await supabase?.auth.signOut(); }
 
 export async function prepareListingPhotos(files: FileList | File[]): Promise<ListingPhoto[]> {

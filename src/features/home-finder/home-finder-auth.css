@@ -1,0 +1,4 @@
+.finder-import-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.finder-inline-signout { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #68736b; cursor: pointer; }
+.finder-auth-gate { border-color: #aebfac; background: #f8fbf5; }
+.finder-import-row button:disabled { opacity: .55; cursor: wait; }

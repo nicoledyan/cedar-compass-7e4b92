@@ -27,7 +27,7 @@ export default function AiDescriptionAnalysis({ draft, setDraft, autoAnalyze = f
   };
   const analyze = async () => {
     setMessage(''); setLoading(true); setAnalysis(null);
-    try { setAnalysis(await analyzeListing(draft, photos)); }
+    try { const result = await analyzeListing(draft, photos); setAnalysis(result); applyResult(result); }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Analysis failed.'); }
     finally { setLoading(false); }
   };
@@ -35,10 +35,12 @@ export default function AiDescriptionAnalysis({ draft, setDraft, autoAnalyze = f
     if (!autoAnalyze || !signedInEmail || autoStarted.current) return;
     autoStarted.current = true; onAutoAnalyzeDone(); void analyze();
   }, [autoAnalyze, signedInEmail]);
-  const apply = () => {
-    if (!analysis) return;
-    setDraft((current) => analysis.suggestions.reduce((next, suggestion) => ({ ...next, [suggestion.field]: suggestion.rating }), current));
-    setMessage(`Applied ${analysis.suggestions.length} suggested ${analysis.suggestions.length === 1 ? 'rating' : 'ratings'} to this draft. Save the assessment to keep them.`);
+  const applyResult = (result: AiHomeAnalysis) => {
+    setDraft((current) => {
+      const facts = Object.fromEntries(Object.entries(result.facts).filter(([, value]) => value !== null));
+      return result.suggestions.reduce((next, suggestion) => ({ ...next, [suggestion.field]: suggestion.rating }), { ...current, ...facts });
+    });
+    setMessage('AI filled every field supported by the available evidence. Review the results, then save.');
   };
 
   return <fieldset className="finder-ai-fieldset"><legend><Bot size={19}/> AI listing review</legend>
@@ -51,7 +53,7 @@ export default function AiDescriptionAnalysis({ draft, setDraft, autoAnalyze = f
     {analysis && <div className="finder-ai-result"><h3>{analysis.summary}</h3>
       {analysis.observations.length > 0 && <div><strong>What the available evidence supports</strong>{analysis.observations.map((item) => <p key={item}>+ {item}</p>)}</div>}
       {analysis.cautions.length > 0 && <div><strong>What still needs checking</strong>{analysis.cautions.map((item) => <p key={item}>? {item}</p>)}</div>}
-      {analysis.suggestions.length > 0 && <div className="finder-ai-suggestions"><strong>Suggested ratings</strong>{analysis.suggestions.map((item) => <p key={item.field}><b>{fieldLabels[item.field]}: {item.rating}/5</b> — {item.evidence} <small>{item.confidence} confidence</small></p>)}<button type="button" onClick={apply}><Check size={16}/> Apply all suggestions</button></div>}
+      {analysis.suggestions.length > 0 && <div className="finder-ai-suggestions"><strong>Applied ratings</strong>{analysis.suggestions.map((item) => <p key={item.field}><b>{fieldLabels[item.field]}: {item.rating}/5</b> — {item.evidence} <small>{item.confidence} confidence</small></p>)}<button type="button" onClick={() => applyResult(analysis)}><Check size={16}/> Apply again</button></div>}
     </div>}
   </fieldset>;
 }

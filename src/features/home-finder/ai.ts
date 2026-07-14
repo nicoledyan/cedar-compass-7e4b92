@@ -21,6 +21,11 @@ export interface AiHomeAnalysis {
   observations: string[];
   cautions: string[];
   suggestions: AiSuggestion[];
+  facts: {
+    price: number | null; bedrooms: number | null; bathrooms: number | null;
+    hoa: HomeRecord['hoa'] | null; parking: HomeRecord['parking'] | null;
+    sunroom: boolean | null; screenedPorch: boolean | null; coveredPorch: boolean | null; showerWindow: boolean | null;
+  };
 }
 
 export interface ListingPhoto {

@@ -1,9 +1,10 @@
-import { ArrowRight, Dumbbell, MapPinned } from 'lucide-react';
+import { ArrowRight, Dumbbell, House, MapPinned } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const cards = [
   { to: '/grow-strong', title: 'Grow Strong', description: 'A fitness planner with workouts, progress tracking, and daily checklists.', icon: Dumbbell, className: 'fitness' },
-  { to: '/springs-guide', title: 'Colorado Springs Guide', description: 'A city guide with nature, food, attractions, events, and hidden gems.', icon: MapPinned, className: 'springs' }
+  { to: '/springs-guide', title: 'Colorado Springs Guide', description: 'A city guide with nature, food, attractions, events, and hidden gems.', icon: MapPinned, className: 'springs' },
+  { to: '/home-finder', title: 'Home Finder', description: 'A personal Zillow shortlist scored for lifestyle, house fit, commute, and fire risk.', icon: House, className: 'homes' }
 ];
 
 export default function LandingPage() {

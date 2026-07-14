@@ -7,6 +7,7 @@ A small, local-first collection of personal tools and guides. The deliberately u
 - `/#/` — collection landing page
 - `/#/grow-strong` — migrated 24-week fitness planner
 - `/#/springs-guide` — saveable Colorado Springs city guide
+- `/#/home-finder` — locally saved and personally scored Zillow shortlist
 
 Hash-based routing is intentional: direct links and refreshes work on GitHub Pages without a custom 404 fallback.
 
@@ -25,6 +26,8 @@ src/
 The Grow Strong source was migrated conservatively from `nicoledyan/fitness`. Its programming, checklists, progress tracking, backup/restore, IndexedDB schema, responsive design, and light-only presentation are retained. Its old hash-based internal tabs now use component state so they do not conflict with the app-level HashRouter. The original repository remains untouched.
 
 The city guide was converted from the supplied standalone HTML into typed React data and reusable hero, filter, progress, section, and card components. Its 70 activities retain their original copy, categories, tips, official links, and Google Maps links.
+
+Home Finder accepts individual Zillow listing URLs, prevents duplicates, extracts a readable address from common Zillow URLs, and stores the record locally. Listing facts are explicitly user-confirmed rather than scraped. Its explained scoring follows the documented lifestyle-first weights, treats elevated wildfire risk as a prominent deal breaker, and supports permanent record deletion with confirmation.
 
 ## Local development
 

@@ -41,6 +41,7 @@ export interface HomeRecord {
   aiSummary?: string;
   aiObservations?: string[];
   aiCautions?: string[];
+  aiSources?: Array<{ title: string; url: string }>;
   notes: string;
 }
 

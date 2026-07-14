@@ -22,6 +22,7 @@ export interface AiHomeAnalysis {
   summary: string;
   observations: string[];
   cautions: string[];
+  sources: Array<{ title: string; url: string }>;
 }
 
 export interface ListingPhoto {

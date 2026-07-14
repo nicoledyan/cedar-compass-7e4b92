@@ -50,14 +50,35 @@ Deno.serve(async (request) => {
   if (!groqKey) return new Response(JSON.stringify({ error: 'Groq is not configured.' }), { status: 503, headers });
   const groq = (payload: unknown) => fetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const cacheKey = address.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  let cached: { research: string; fetched_at: string } | null = null;
+  if (serviceKey) {
+    const cacheResponse = await fetch(`${supabaseUrl}/rest/v1/listing_research_cache?cache_key=eq.${encodeURIComponent(cacheKey)}&select=research,fetched_at&limit=1`, { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } });
+    if (cacheResponse.ok) cached = (await cacheResponse.json())?.[0] ?? null;
+    else console.error('Cache read error', cacheResponse.status, (await cacheResponse.text()).slice(0, 300));
+  }
+
   const researchPrompt = (focus: string) => ({
     model: 'groq/compound-mini', temperature: 0.1, max_completion_tokens: 1400,
     messages: [{ role: 'user', content: `Find the CURRENT active residential listing for the exact address "${address}". ${focus} Run multiple searches if the first is empty; do not stop after one unsuccessful query. You may use Zillow search-result snippets, but do not open, visit, crawl, or scrape Zillow. Visit accessible non-Zillow listing pages. Return concise sourced facts for list price, bedrooms, bathrooms, HOA, garage or parking, lot and yard, mountain views, condition and updates, natural light, layout, porch or deck, nearby amenities, noise evidence, and the agent's listing description. Include source URLs beside the facts and distinguish current listing data from older public records. Zillow identifier only: ${body.listingUrl ?? 'not supplied'}` }],
   });
-  const researchResponse = await groq(researchPrompt('Search the quoted full address and MLS listing across Redfin, Trulia, Homes.com, Realtor.com, Coldwell Banker, and local brokerage sites. Prioritize current MLS mirrors.'));
-  let research = 'Public web research was unavailable. Rely only on the optional description and photos.';
-  if (researchResponse.ok) research = (await researchResponse.json())?.choices?.[0]?.message?.content || research;
-  else console.error('Groq research error', researchResponse.status, (await researchResponse.text()).slice(0, 500));
+  const cacheAge = cached ? Date.now() - new Date(cached.fetched_at).getTime() : Infinity;
+  let research = cacheAge < 72 * 60 * 60 * 1000 ? cached!.research : '';
+  if (!research) {
+    const researchResponse = await groq(researchPrompt('Search the quoted full address and MLS listing across Redfin, Trulia, Homes.com, Realtor.com, Coldwell Banker, and local brokerage sites. Prioritize current MLS mirrors.'));
+    if (researchResponse.ok) {
+      research = (await researchResponse.json())?.choices?.[0]?.message?.content ?? '';
+      if (research && serviceKey) {
+        const cacheWrite = await fetch(`${supabaseUrl}/rest/v1/listing_research_cache?on_conflict=cache_key`, { method: 'POST', headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ cache_key: cacheKey, address, research, fetched_at: new Date().toISOString() }) });
+        if (!cacheWrite.ok) console.error('Cache write error', cacheWrite.status, (await cacheWrite.text()).slice(0, 300));
+      }
+    } else {
+      console.error('Groq research error', researchResponse.status, (await researchResponse.text()).slice(0, 500));
+      research = cached?.research ?? '';
+    }
+  }
+  if (!research) research = 'Public web research was unavailable. Rely only on the optional description and photos.';
 
   let photoEvidence = 'No photos were supplied.';
   if (photos.length) {

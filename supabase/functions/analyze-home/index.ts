@@ -228,8 +228,18 @@ OUTPUT
   const completion = await geminiResponse.json();
   try {
     const rawAnalysis = geminiText(completion).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    const analysis = JSON.parse(rawAnalysis);
-    if (!Number.isInteger(analysis.fitScore) || !Array.isArray(analysis.confirmedFacts) || !Array.isArray(analysis.unknowns)) throw new Error('Incomplete analysis');
+    const jsonText = rawAnalysis.match(/\{[\s\S]*\}/)?.[0] ?? rawAnalysis;
+    const analysis = JSON.parse(jsonText) as Partial<typeof schema> & Record<string, unknown>;
+    // Treat optional omissions as omissions, not a failed review. Gemini may
+    // sensibly leave out a section when no evidence supports it.
+    analysis.fitScore = Number.isInteger(analysis.fitScore) ? Math.min(100, Math.max(0, analysis.fitScore as number)) : 50;
+    analysis.verdict = typeof analysis.verdict === 'string' ? analysis.verdict : 'A neutral fit score is shown while evidence remains limited.';
+    analysis.summary = typeof analysis.summary === 'string' ? analysis.summary : 'Review the confirmed evidence and linked sources before deciding how well this home fits.';
+    analysis.observations = Array.isArray(analysis.observations) ? analysis.observations.filter((item): item is string => typeof item === 'string').slice(0, 6) : [];
+    analysis.cautions = Array.isArray(analysis.cautions) ? analysis.cautions.filter((item): item is string => typeof item === 'string').slice(0, 6) : [];
+    analysis.confidence = Number.isInteger(analysis.confidence) ? Math.min(100, Math.max(0, analysis.confidence as number)) : 20;
+    analysis.confirmedFacts = Array.isArray(analysis.confirmedFacts) ? analysis.confirmedFacts.filter((fact): fact is Record<string, unknown> => Boolean(fact) && typeof fact === 'object').map((fact) => ({ label: typeof fact.label === 'string' ? fact.label : 'Listing fact', value: typeof fact.value === 'string' ? fact.value : 'See evidence', evidence: typeof fact.evidence === 'string' ? fact.evidence : 'No short evidence supplied.', sourceUrl: typeof fact.sourceUrl === 'string' ? fact.sourceUrl : 'user-supplied-description', confidence: fact.confidence === 'high' || fact.confidence === 'medium' || fact.confidence === 'low' ? fact.confidence : 'low' })).slice(0, 8) : [];
+    analysis.unknowns = Array.isArray(analysis.unknowns) ? analysis.unknowns.filter((item): item is string => typeof item === 'string').slice(0, 6) : [];
     const modelSources = Array.isArray(analysis.sources) ? analysis.sources.filter((source: { url?: unknown }) => typeof source?.url === 'string' && /^https:\/\//.test(source.url)) : [];
     const sourcesByUrl = new Map<string, { title: string; url: string }>();
     for (const source of [...groundingSources(completion), ...modelSources]) sourcesByUrl.set(source.url, source);

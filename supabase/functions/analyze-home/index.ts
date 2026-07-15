@@ -204,6 +204,7 @@ SCORING
 - confidence measures evidence completeness/reliability, not how good the home is.
 
 OUTPUT
+- Return JSON only, with exactly these keys: fitScore (integer 0-100), verdict (string), summary (string), observations (string array), cautions (string array), confidence (integer 0-100), confirmedFacts (array of {label,value,evidence,sourceUrl,confidence}), unknowns (string array), sources (array of {title,url}).
 - Keep the entire result compact: under 1,400 words. verdict: one candid sentence. summary: 2 short sentences explaining the biggest fit drivers and tradeoffs.
 - observations: 3-5 concise evidence-backed strengths; cautions: 3-5 concise real tradeoffs, conflicts, age-appropriate checks, or important unknowns. Do not put positives in cautions.
 - unknowns: up to 6 concise unanswered priority questions. Avoid duplicates across sections.
@@ -212,7 +213,10 @@ OUTPUT
   const analysisPayload = {
     systemInstruction: { parts: [{ text: analysisSystemPrompt }] },
     contents: [{ role: 'user', parts: [{ text: `WHAT NICOLE WANTS IN A HOME:\n<preferences>\n${preferences.slice(0, 2_000)}\n</preferences>\n\nAddress: ${address}\n\nPUBLIC WEB RESEARCH:\n${researchForAnalysis}${verifiedSnapshot ? `\n\nHUMAN-VERIFIED CURRENT LISTING EVIDENCE:\n${verifiedSnapshot.evidence}\nSource URL: ${verifiedSnapshot.sourceUrl}` : ''}\n\nAREA & OFFICIAL-RISK API EVIDENCE:\n${areaEvidenceForAnalysis}\n\nOPTIONAL LISTING DESCRIPTION:\n${description.slice(0, 6_000) || 'Not supplied.'}\n\nPHOTO OBSERVATIONS:\n${photoEvidence.slice(0, 1_800)}` }] }],
-    generationConfig: { temperature: 0, maxOutputTokens: 4096, responseMimeType: 'application/json', responseJsonSchema: schema },
+    // Gemini's free models can spend much of a strict-schema response budget on
+    // internal reasoning. Ask for compact JSON, then validate it ourselves so a
+    // formatting wrinkle never makes a phone review fail outright.
+    generationConfig: { temperature: 0, maxOutputTokens: 1800, responseMimeType: 'application/json' },
   };
   const geminiResponse = await geminiWithRetry(analysisPayload);
   if (!geminiResponse.ok) {
@@ -223,7 +227,8 @@ OUTPUT
   }
   const completion = await geminiResponse.json();
   try {
-    const analysis = JSON.parse(geminiText(completion));
+    const rawAnalysis = geminiText(completion).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const analysis = JSON.parse(rawAnalysis);
     if (!Number.isInteger(analysis.fitScore) || !Array.isArray(analysis.confirmedFacts) || !Array.isArray(analysis.unknowns)) throw new Error('Incomplete analysis');
     const modelSources = Array.isArray(analysis.sources) ? analysis.sources.filter((source: { url?: unknown }) => typeof source?.url === 'string' && /^https:\/\//.test(source.url)) : [];
     const sourcesByUrl = new Map<string, { title: string; url: string }>();
@@ -233,6 +238,18 @@ OUTPUT
     return new Response(JSON.stringify(analysis), { headers });
   } catch (error) {
     console.error('Gemini parse error', String(error), geminiText(completion).slice(0, 500));
-    return new Response(JSON.stringify({ error: 'Gemini returned an unexpected response.' }), { status: 502, headers });
+    const sourceUrls = [...research.matchAll(/https:\/\/[^\s)\]]+/g)].map((match) => match[0].replace(/[.,;]+$/, '')).slice(0, 6);
+    const fallbackSources = [...new Set([verifiedSnapshot?.sourceUrl, ...sourceUrls].filter((url): url is string => Boolean(url)))].map((url) => ({ title: new URL(url).hostname.replace(/^www\./, ''), url }));
+    return new Response(JSON.stringify({
+      fitScore: 50,
+      verdict: 'A neutral fit score is shown because the available evidence could not be formatted into a full review.',
+      summary: 'Cedar found some listing research, but Gemini returned an incomplete response. Review the linked sources and run the review again later for a full personalized score.',
+      observations: ['The listing and any available public sources are linked below.'],
+      cautions: ['This is a temporary fallback, not a negative finding about the home.'],
+      confidence: 15,
+      confirmedFacts: [],
+      unknowns: ['A complete AI evidence summary'],
+      sources: fallbackSources,
+    }), { headers });
   }
 });
